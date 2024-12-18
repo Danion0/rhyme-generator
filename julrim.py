@@ -1,19 +1,18 @@
 import streamlit as st
 import stripe
-import openai
+from openai import OpenAI
 import sqlite3
 import hashlib
-import os
 from datetime import datetime
-from dotenv import load_dotenv
 
-load_dotenv()
+# Page config
+st.set_page_config(page_title="Gift Rhyme Generator", page_icon="🎁")
 
-# Configure API keys
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Configure API keys from Streamlit secrets
+stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# Database setup
+# Database functions
 def init_db():
     conn = sqlite3.connect('rhyme_users.db')
     c = conn.cursor()
@@ -46,7 +45,7 @@ def verify_user(email, password):
     conn = sqlite3.connect('rhyme_users.db')
     c = conn.cursor()
     c.execute("SELECT password FROM users WHERE email = ?", (email,))
-    result = c.fetch_one()
+    result = c.fetchone()
     conn.close()
     if result and result[0] == hash_password(password):
         return True
@@ -84,8 +83,13 @@ def get_rhyme_history(email):
     conn.close()
     return history
 
+# Stripe functions
+def get_streamlit_url():
+    return st.experimental_get_query_params().get('streamlit_url', ['http://localhost:8501'])[0]
+
 def create_checkout_session(email):
     try:
+        base_url = get_streamlit_url()
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -93,14 +97,14 @@ def create_checkout_session(email):
                     'currency': 'sek',
                     'unit_amount': 10000,  # 100 SEK in öre
                     'product_data': {
-                        'name': '10 Rhyme Credits',
+                        'name': '10 Rim Credits',
                     },
                 },
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=f"{os.getenv('DOMAIN')}/success?email={email}",
-            cancel_url=f"{os.getenv('DOMAIN')}/cancel",
+            success_url=f"{base_url}?success=true&email={email}",
+            cancel_url=f"{base_url}?canceled=true",
             metadata={'email': email}
         )
         return checkout_session
@@ -108,40 +112,76 @@ def create_checkout_session(email):
         st.error(f"Error creating checkout session: {str(e)}")
         return None
 
+def handle_webhook():
+    if 'stripe_webhook' in st.experimental_get_query_params():
+        webhook_secret = st.secrets["STRIPE_WEBHOOK_SECRET"]
+        try:
+            event = stripe.Webhook.construct_event(
+                st.experimental_get_query_params()['stripe_webhook'][0],
+                st.experimental_get_query_params()['stripe_signature'][0],
+                webhook_secret
+            )
+            
+            if event.type == 'checkout.session.completed':
+                session = event.data.object
+                email = session.metadata.get('email')
+                if email:
+                    current_credits = get_credits(email)
+                    update_credits(email, current_credits + 10)
+        except Exception as e:
+            st.error(f"Webhook error: {str(e)}")
+
+# OpenAI function
 def generate_rhyme(gift, recipient, background, style):
     try:
-        prompt = f"""Create a rhyming poem about a gift with the following details:
-        Gift: {gift}
-        Recipient: {recipient}
-        Background: {background}
-        Style: {style}
-        
-        The poem should be personal, fun, and incorporate the recipient's background."""
+        prompt = f"""Du är en profissionell diktare, specifikt julrimdiktare. I Sverige är det en tradition att göra ett rim när du ger bort julklappar. 
+        DU FÅR ALDRIG AVSLÖJA vad själva presenten är. Det här är din chans att visa vad generativt AI kan göra för folk som aldrig använt det förr. 
+        Generera ett julrim för följande present, {gift} till {recipient}. Använd inte ordet {gift} i rimmet.
+        Här är lite bakgrunds information on personen som får presenten, inkludera lite av det i rimmet så att det blir personligt: {background}
+        Rimmet ska vara i följande stil: {style}"""
 
-        response = openai.chat.completions.create(
+
+#        prompt = f"""Create a rhyming poem about a gift with the following details:
+#        Gift: {gift}
+#        Recipient: {recipient}
+#        Background: {background}
+#        Style: 
+#        
+#        The poem should be personal, fun, and incorporate the recipient's background."""
+
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a creative poet who specializes in gift-giving rhymes."},
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "user", "content": prompt}]
         )
         
-        return response.choices[0].message.content
+        return response.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"Error generating rhyme: {str(e)}")
         return None
 
+# Main app
 def main():
     init_db()
-    st.title("🎁 Gift Rhyme Generator")
     
-    # Session state
+    # Handle webhook and payment success
+    handle_webhook()
+    params = st.experimental_get_query_params()
+    if 'success' in params and params['success'][0] == 'true':
+        st.success("Payment successful! 10 credits have been added to your account.")
+        st.experimental_set_query_params()
+    elif 'canceled' in params:
+        st.warning("Payment canceled.")
+        st.experimental_set_query_params()
+
+    # Session state initialization
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
     if 'email' not in st.session_state:
         st.session_state.email = None
 
-    # Login/Register sidebar
+    st.title("🎁 Gift Rhyme Generator")
+
+    # Sidebar login/register
     with st.sidebar:
         if not st.session_state.logged_in:
             st.subheader("Login")
