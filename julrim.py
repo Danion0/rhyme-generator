@@ -85,7 +85,7 @@ def get_rhyme_history(email):
 
 # Stripe functions
 def get_streamlit_url():
-    return st.query_params().get('streamlit_url', ['http://localhost:8501'])[0]
+    return st.experimental_get_query_params().get('streamlit_url', ['http://localhost:8501'])[0]
 
 def create_checkout_session(email):
     try:
@@ -113,12 +113,12 @@ def create_checkout_session(email):
         return None
 
 def handle_webhook():
-    if 'stripe_webhook' in st.query_params():
+    if 'stripe_webhook' in st.experimental_get_query_params():
         webhook_secret = st.secrets["STRIPE_WEBHOOK_SECRET"]
         try:
             event = stripe.Webhook.construct_event(
-                st.query_params()['stripe_webhook'][0],
-                st.query_params()['stripe_signature'][0],
+                st.experimental_get_query_params()['stripe_webhook'][0],
+                st.experimental_get_query_params()['stripe_signature'][0],
                 webhook_secret
             )
             
@@ -165,13 +165,13 @@ def main():
     
     # Handle webhook and payment success
     handle_webhook()
-    params = st.query_params()
+    params = st.experimental_get_query_params()
     if 'success' in params and params['success'][0] == 'true':
         st.success("Payment successful! 10 credits have been added to your account.")
-        st.query_params()
+        st.experimental_get_query_params()
     elif 'canceled' in params:
         st.warning("Payment canceled.")
-        st.query_params()
+        st.experimental_get_query_params()
 
     # Session state initialization
     if 'logged_in' not in st.session_state:
