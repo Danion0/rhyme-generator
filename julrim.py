@@ -85,7 +85,10 @@ def get_rhyme_history(email):
 
 # Stripe functions
 def get_streamlit_url():
-    return st.query_params.get('streamlit_url', ['http://localhost:8501'])[0]
+    # Check if running on Streamlit Cloud
+    if st.secrets.get("HOSTNAME"):
+        return f"https://{st.secrets['HOSTNAME']}"
+    return "http://localhost:8501"  # Local development fallback
 
 def create_checkout_session(email):
     try:
@@ -97,7 +100,7 @@ def create_checkout_session(email):
                     'currency': 'sek',
                     'unit_amount': 10000,  # 100 SEK in öre
                     'product_data': {
-                        'name': '10 Rim Credits',
+                        'name': '10 Rhyme Credits',
                     },
                 },
                 'quantity': 1,

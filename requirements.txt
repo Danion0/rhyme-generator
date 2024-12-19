@@ -1,11 +1,4 @@
-<<<<<<< HEAD
 streamlit
 stripe
 openai
 python-dotenv
-=======
-streamlit
-stripe
-openai
-python-dotenv
->>>>>>> 0eb58cbfd167522bb7d5e2bb3db1fd926bba47cb
