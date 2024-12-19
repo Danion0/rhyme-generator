@@ -117,19 +117,25 @@ def handle_webhook():
         webhook_secret = st.secrets["STRIPE_WEBHOOK_SECRET"]
         try:
             event = stripe.Webhook.construct_event(
-                st.query_params['stripe_webhook'][0],
-                st.query_params['stripe_signature'][0],
+                st.query_params['stripe_webhook'],
+                st.query_params['stripe_signature'],
                 webhook_secret
             )
             
             if event.type == 'checkout.session.completed':
                 session = event.data.object
                 email = session.metadata.get('email')
+                st.write(f"Webhook received for email: {email}")  # Debug log
                 if email:
                     current_credits = get_credits(email)
+                    st.write(f"Current credits: {current_credits}")  # Debug log
                     update_credits(email, current_credits + 10)
+                    st.write(f"Credits updated to: {current_credits + 10}")  # Debug log
+                else:
+                    st.write("No email found in metadata")  # Debug log
         except Exception as e:
             st.error(f"Webhook error: {str(e)}")
+            st.write(f"Full error details: {str(e)}")  # Debug log
 
 # OpenAI function
 def generate_rhyme(gift, recipient, background, style):
