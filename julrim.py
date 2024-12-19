@@ -191,11 +191,11 @@ def main():
         if email:
             # Double-check credits were added
             current_credits = get_credits(email)
-            st.write(f"Credits after payment: {current_credits}")
+            #st.write(f"Credits after payment: {current_credits}")
             if current_credits == 0:
                 # Fallback credit update if webhook failed
                 update_credits(email, 5)
-                st.write("Credits updated via success URL")
+                st.write("Dina credits har uppdaterats. Vänligen logga in igen.")
         st.success("Betalningen gick bra. Ditt account har uppdaterats med 5 credits.")
         st.query_params.clear()
     elif 'canceled' in st.query_params:
