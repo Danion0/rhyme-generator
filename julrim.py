@@ -116,29 +116,35 @@ def create_checkout_session(email):
         return None
 
 def handle_webhook():
+    st.write("Webhook handler started")  # Debug log
     if 'stripe_webhook' in st.query_params:
-        webhook_secret = st.secrets["STRIPE_WEBHOOK_SECRET"]
         try:
-            event = stripe.Webhook.construct_event(
+            webhook_secret = st.secrets["STRIPE_WEBHOOK_SECRET"]
+            st.write("Got webhook secret")  # Debug log
+            
+            event = stripe.Event.construct_from(
                 st.query_params['stripe_webhook'],
-                st.query_params['stripe_signature'],
-                webhook_secret
+                stripe.api_key
             )
+            
+            st.write(f"Event type: {event.type}")  # Debug log
             
             if event.type == 'checkout.session.completed':
                 session = event.data.object
                 email = session.metadata.get('email')
-                st.write(f"Webhook received for email: {email}")  # Debug log
+                st.write(f"Processing payment for email: {email}")  # Debug log
+                
                 if email:
                     current_credits = get_credits(email)
                     st.write(f"Current credits: {current_credits}")  # Debug log
                     update_credits(email, current_credits + 10)
-                    st.write(f"Credits updated to: {current_credits + 10}")  # Debug log
+                    new_credits = get_credits(email)
+                    st.write(f"New credits balance: {new_credits}")  # Debug log
                 else:
                     st.write("No email found in metadata")  # Debug log
         except Exception as e:
             st.error(f"Webhook error: {str(e)}")
-            st.write(f"Full error details: {str(e)}")  # Debug log
+            st.write(f"Full error details: {type(e).__name__}: {str(e)}")  # Debug log
 
 # OpenAI function
 def generate_rhyme(gift, recipient, background, style):
@@ -244,7 +250,8 @@ def main():
     # Main content
     if st.session_state.logged_in:
         credits = get_credits(st.session_state.email)
-        
+        if st.session_state.logged_in:
+            debug_user_info(st.session_state.email)
         if credits > 0:
             with st.form("rhyme_form"):
                 gift = st.text_input("What is the gift?")
@@ -287,6 +294,15 @@ def main():
         for rhyme, created_at in history:
             with st.expander(f"Rhyme from {created_at}"):
                 st.text(rhyme)
+
+def debug_user_info(email):
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE email = ?", (email,))
+    user_data = c.fetchone()
+    conn.close()
+    st.write(f"User data: {user_data}")  # Debug log
+    return user_data
 
 if __name__ == "__main__":
     main()
