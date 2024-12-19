@@ -36,8 +36,10 @@ def hash_password(password):
 def create_user(email, password):
     conn = sqlite3.connect('rhyme_users.db')
     c = conn.cursor()
-    c.execute("INSERT INTO users (email, password) VALUES (?, ?)",
-              (email, hash_password(password)))
+    c.execute("""
+        INSERT INTO users (email, password, credits) 
+        VALUES (?, ?, 1)
+    """, (email, hash_password(password)))
     conn.commit()
     conn.close()
 
@@ -116,7 +118,7 @@ def create_checkout_session(email):
         return None
 
 def handle_webhook():
-    st.write("Webhook handler started")  # Debug log
+    #st.write("Webhook handler started")  # Debug log
     if 'stripe_webhook' in st.query_params:
         try:
             # Parse the webhook data directly from the query parameters
@@ -192,9 +194,9 @@ def main():
             st.write(f"Credits after payment: {current_credits}")
             if current_credits == 0:
                 # Fallback credit update if webhook failed
-                update_credits(email, 10)
+                update_credits(email, 5)
                 st.write("Credits updated via success URL")
-        st.success("Betalningen gick bra. Ditt account har uppdaterats med 10 credits.")
+        st.success("Betalningen gick bra. Ditt account har uppdaterats med 5 credits.")
         st.query_params.clear()
     elif 'canceled' in st.query_params:
         st.warning("Payment canceled.")
@@ -241,7 +243,7 @@ def main():
             st.write(f"Credits remaining: {credits}")
             
             if credits < 3:
-                if st.button("Köp 50 Credits (100 SEK)"):
+                if st.button("Köp 5 Credits (50 SEK)"):
                     checkout_session = create_checkout_session(st.session_state.email)
                     if checkout_session:
                         st.markdown(f"""
