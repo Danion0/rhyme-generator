@@ -119,32 +119,35 @@ def handle_webhook():
     st.write("Webhook handler started")  # Debug log
     if 'stripe_webhook' in st.query_params:
         try:
-            webhook_secret = st.secrets["STRIPE_WEBHOOK_SECRET"]
-            st.write("Got webhook secret")  # Debug log
+            # Parse the webhook data directly from the query parameters
+            webhook_data = st.query_params['stripe_webhook']
             
-            event = stripe.Event.construct_from(
-                st.query_params['stripe_webhook'],
-                stripe.api_key
-            )
+            # If webhook_data is a string, try to parse it
+            if isinstance(webhook_data, str):
+                import json
+                webhook_data = json.loads(webhook_data)
             
-            st.write(f"Event type: {event.type}")  # Debug log
-            
-            if event.type == 'checkout.session.completed':
-                session = event.data.object
-                email = session.metadata.get('email')
-                st.write(f"Processing payment for email: {email}")  # Debug log
+            # Extract the session data
+            if webhook_data.get('object', {}).get('object') == 'checkout.session':
+                session = webhook_data['object']
+                email = session['metadata'].get('email')
+                payment_status = session.get('payment_status')
                 
-                if email:
+                st.write(f"Processing payment for email: {email}")
+                st.write(f"Payment status: {payment_status}")
+                
+                if email and payment_status == 'paid':
                     current_credits = get_credits(email)
-                    st.write(f"Current credits: {current_credits}")  # Debug log
+                    st.write(f"Current credits: {current_credits}")
                     update_credits(email, current_credits + 10)
                     new_credits = get_credits(email)
-                    st.write(f"New credits balance: {new_credits}")  # Debug log
-                else:
-                    st.write("No email found in metadata")  # Debug log
+                    st.write(f"New credits balance: {new_credits}")
+            else:
+                st.write("Invalid webhook data format")
+                
         except Exception as e:
             st.error(f"Webhook error: {str(e)}")
-            st.write(f"Full error details: {type(e).__name__}: {str(e)}")  # Debug log
+            st.write(f"Full error details: {type(e).__name__}: {str(e)}")
 
 # OpenAI function
 def generate_rhyme(gift, recipient, background, style):
@@ -180,9 +183,18 @@ def main():
     
     # Handle webhook and payment success
     handle_webhook()
+     # Check payment status from query params
     if st.query_params.get('success') == 'true':
+        email = st.query_params.get('email')
+        if email:
+            # Double-check credits were added
+            current_credits = get_credits(email)
+            st.write(f"Credits after payment: {current_credits}")
+            if current_credits == 0:
+                # Fallback credit update if webhook failed
+                update_credits(email, 10)
+                st.write("Credits updated via success URL")
         st.success("Payment successful! 10 credits have been added to your account.")
-        # Clear URL parameters
         st.query_params.clear()
     elif 'canceled' in st.query_params:
         st.warning("Payment canceled.")
