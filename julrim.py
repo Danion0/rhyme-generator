@@ -6,7 +6,7 @@ import hashlib
 from datetime import datetime
 
 # Page config
-st.set_page_config(page_title="Gift Rhyme Generator", page_icon="🎁")
+st.set_page_config(page_title="AI Powered Julrims Generator - Registera nu för att få ett gratis rim!", page_icon="🎁")
 
 # Configure API keys from Streamlit secrets
 stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
@@ -19,7 +19,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (email TEXT PRIMARY KEY, 
                   password TEXT, 
-                  credits INTEGER DEFAULT 0,
+                  credits INTEGER DEFAULT 1,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS rhyme_history
@@ -98,9 +98,9 @@ def create_checkout_session(email):
             line_items=[{
                 'price_data': {
                     'currency': 'sek',
-                    'unit_amount': 10000,  # 100 SEK in öre
+                    'unit_amount': 5000,  # 100 SEK in öre
                     'product_data': {
-                        'name': '10 Rhyme Credits',
+                        'name': '5 Julrims Credits',
                     },
                 },
                 'quantity': 1,
@@ -139,7 +139,7 @@ def handle_webhook():
                 if email and payment_status == 'paid':
                     current_credits = get_credits(email)
                     st.write(f"Current credits: {current_credits}")
-                    update_credits(email, current_credits + 10)
+                    update_credits(email, current_credits + 5)
                     new_credits = get_credits(email)
                     st.write(f"New credits balance: {new_credits}")
             else:
@@ -194,7 +194,7 @@ def main():
                 # Fallback credit update if webhook failed
                 update_credits(email, 10)
                 st.write("Credits updated via success URL")
-        st.success("Payment successful! 10 credits have been added to your account.")
+        st.success("Betalningen gick bra. Ditt account har uppdaterats med 10 credits.")
         st.query_params.clear()
     elif 'canceled' in st.query_params:
         st.warning("Payment canceled.")
@@ -206,7 +206,7 @@ def main():
     if 'email' not in st.session_state:
         st.session_state.email = None
 
-    st.title("🎁 Gift Rhyme Generator")
+    st.title("🎁 Julrims Generator")
 
     # Sidebar login/register
     with st.sidebar:
@@ -231,9 +231,9 @@ def main():
                 if st.button("Register"):
                     try:
                         create_user(reg_email, reg_password)
-                        st.success("Registration successful! Please login.")
+                        st.success("Registreringen gick bra! Vänligen logga in.")
                     except Exception as e:
-                        st.error("Registration failed. Email might already exist.")
+                        st.error("Registreringen misslyckades. Emailen finns säkert redan.")
         
         else:
             st.write(f"Logged in as: {st.session_state.email}")
@@ -241,13 +241,13 @@ def main():
             st.write(f"Credits remaining: {credits}")
             
             if credits < 3:
-                if st.button("Buy 10 Credits (100 SEK)"):
+                if st.button("Köp 50 Credits (100 SEK)"):
                     checkout_session = create_checkout_session(st.session_state.email)
                     if checkout_session:
                         st.markdown(f"""
                             <a href="{checkout_session.url}" target="_blank">
                                 <button style="background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer;">
-                                    Proceed to Payment
+                                    Forsätt till betalning
                                 </button>
                             </a>
                             """,
@@ -262,24 +262,23 @@ def main():
     # Main content
     if st.session_state.logged_in:
         credits = get_credits(st.session_state.email)
-        if st.session_state.logged_in:
-            debug_user_info(st.session_state.email)
+
         if credits > 0:
             with st.form("rhyme_form"):
-                gift = st.text_input("What is the gift?")
-                recipient = st.text_input("Who is the gift for?")
-                background = st.text_area("Tell us about the recipient (interests, personality, etc.)")
+                gift = st.text_input("Vad är presenten för något?")
+                recipient = st.text_input("Till vem är presenten?")
+                background = st.text_area("Ge oss like bakgrund till personen i fråga.")
                 style = st.selectbox(
-                    "Choose the rhyme style",
-                    ["Funny", "Romantic", "Classical", "Modern", "Children's Rhyme"]
+                    "Välj stil på julrimmet",
+                    ["Roligt", "Romantiskt", "Klassisk", "Modern", "Barnslig"]
                 )
                 
-                submit_button = st.form_submit_button("Generate Rhyme (Uses 1 Credit)")
+                submit_button = st.form_submit_button("Generera julrim (Använder 1 Credit)")
             
             if submit_button:
                 rhyme = generate_rhyme(gift, recipient, background, style)
                 if rhyme:
-                    st.success("Your custom rhyme is ready!")
+                    st.success("Ditt julrim är redo!")
                     st.markdown(f"```\n{rhyme}\n```")
                     
                     # Save rhyme and update credits
@@ -298,23 +297,15 @@ def main():
                     st.rerun()  # Refresh to update credit display
         
         else:
-            st.warning("You need to purchase credits to generate rhymes.")
+            st.warning("Du måste fylla på Credits för att kunna generera rim.")
         
         # Show rhyme history
-        st.subheader("Your Previous Rhymes")
+        st.subheader("Rim historik")
         history = get_rhyme_history(st.session_state.email)
         for rhyme, created_at in history:
-            with st.expander(f"Rhyme from {created_at}"):
+            with st.expander(f"Rim från {created_at}"):
                 st.text(rhyme)
 
-def debug_user_info(email):
-    conn = sqlite3.connect('rhyme_users.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE email = ?", (email,))
-    user_data = c.fetchone()
-    conn.close()
-    st.write(f"User data: {user_data}")  # Debug log
-    return user_data
 
 if __name__ == "__main__":
     main()
