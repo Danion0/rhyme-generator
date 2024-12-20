@@ -66,9 +66,27 @@ def get_credits(email):
 def update_credits(email, credits):
     conn = sqlite3.connect('rhyme_users.db')
     c = conn.cursor()
-    c.execute("UPDATE users SET credits = ? WHERE email = ?", (credits, email))
-    conn.commit()
-    conn.close()
+    try:
+        # First verify current credits
+        c.execute("SELECT credits FROM users WHERE email = ?", (email,))
+        old_credits = c.fetchone()[0]
+        st.write(f"Debug - Old credits: {old_credits}")  # Debug log
+
+        # Update credits
+        c.execute("UPDATE users SET credits = ? WHERE email = ?", (credits, email))
+        conn.commit()
+
+        # Verify the update
+        c.execute("SELECT credits FROM users WHERE email = ?", (email,))
+        new_credits = c.fetchone()[0]
+        st.write(f"Debug - New credits: {new_credits}")  # Debug log
+
+        if new_credits != credits:
+            st.error("Credit update failed to save correctly")
+    except Exception as e:
+        st.error(f"Error updating credits: {e}")
+    finally:
+        conn.close()
 
 def save_rhyme(email, rhyme):
     conn = sqlite3.connect('rhyme_users.db')
@@ -314,10 +332,10 @@ def main():
                                     key=f"input_{user[0]}"
                                 )
                                 if st.button("Save", key=f"save_{user[0]}"):
+                                    st.write(f"Attempting to update credits from {user[1]} to {new_credits}")  # Debug log
                                     update_credits(user[0], new_credits)
-                                    st.success(f"Updated credits for {user[0]}")
-                                    time.sleep(1)  # Give user time to see success message
-                                    st.rerun()
+                                    time.sleep(1)
+                                    st.rerun() 
                             
                             # Rhyme history
                             c.execute("""
