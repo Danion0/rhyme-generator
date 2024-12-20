@@ -10,28 +10,20 @@ from datetime import datetime
 @st.cache_resource
 def init_connection_pool():
     try:
+        # Create connection pool using separate parameters
         db_pool = pool.SimpleConnectionPool(
-            1, 20,
-            dsn=st.secrets["DATABASE_URL"]
+            1,  # minimum connections
+            20, # maximum connections
+            host="db.femttejhwlqnofwnbqtl.supabase.co",
+            database="postgres",
+            user="postgres",
+            password=st.secrets["DB_PASSWORD"],  # Store raw password in secrets
+            port="5432"
         )
         return db_pool
     except Exception as e:
         st.error(f"Error creating connection pool: {e}")
         return None
-
-# Make sure these functions are defined before using them
-def get_conn():
-    try:
-        return st.session_state.db_pool.getconn()
-    except Exception as e:
-        st.error(f"Failed to get database connection: {e}")
-        return None
-
-def put_conn(conn):
-    try:
-        st.session_state.db_pool.putconn(conn)
-    except Exception as e:
-        st.error(f"Failed to return connection to pool: {e}")
 
 # Page config
 st.set_page_config(page_title="AI Powered Julrims Generator - Registera nu för att få ett gratis rim!", page_icon="🎁")
