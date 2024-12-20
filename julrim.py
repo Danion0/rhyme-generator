@@ -118,32 +118,21 @@ def create_checkout_session(email):
         return None
 
 def handle_webhook():
-    #st.write("Webhook handler started")  # Debug log
     if 'stripe_webhook' in st.query_params:
         try:
-            # Parse the webhook data directly from the query parameters
             webhook_data = st.query_params['stripe_webhook']
-            
-            # If webhook_data is a string, try to parse it
             if isinstance(webhook_data, str):
                 import json
                 webhook_data = json.loads(webhook_data)
             
-            # Extract the session data
             if webhook_data.get('object', {}).get('object') == 'checkout.session':
                 session = webhook_data['object']
                 email = session['metadata'].get('email')
                 payment_status = session.get('payment_status')
                 
-                st.write(f"Processing payment for email: {email}")
-                st.write(f"Payment status: {payment_status}")
-                
                 if email and payment_status == 'paid':
                     current_credits = get_credits(email)
-                    st.write(f"Current credits: {current_credits}")
                     update_credits(email, current_credits + 5)
-                    new_credits = get_credits(email)
-                    st.write(f"New credits balance: {new_credits}")
             else:
                 st.write("Invalid webhook data format")
                 
@@ -191,11 +180,8 @@ def main():
         if email:
             # Double-check credits were added
             current_credits = get_credits(email)
-            #st.write(f"Credits after payment: {current_credits}")
-            if current_credits == 0:
-                # Fallback credit update if webhook failed
-                update_credits(email, 5)
-                st.write("Dina credits har uppdaterats. Vänligen logga in igen.")
+            update_credits(email, current_credits + 5)
+            st.write("Dina credits har uppdaterats. Vänligen logga in igen.")
         st.success("Betalningen gick bra. Ditt account har uppdaterats med 5 credits. Vänligen logga in igen.")
         st.query_params.clear()
     elif 'canceled' in st.query_params:
