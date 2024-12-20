@@ -6,81 +6,37 @@ from psycopg2 import pool
 import hashlib
 from datetime import datetime
 
-def test_db_connection():
-    # First, check if we can read the DATABASE_URL
-    try:
-        db_url = st.secrets["DATABASE_URL"]
-        st.write("✅ Successfully read database URL from secrets")
-        
-        # Print a sanitized version of the URL (hiding credentials)
-        url_parts = db_url.split('@')
-        if len(url_parts) > 1:
-            st.write(f"Connection to: ...@{url_parts[1]}")
-    except Exception as e:
-        st.error(f"❌ Could not read DATABASE_URL from secrets: {str(e)}")
-        return False
 
-    # Try to create the connection pool
+@st.cache_resource
+def init_connection_pool():
     try:
-        if 'db_pool' not in st.session_state:
-            st.session_state.db_pool = init_connection_pool()
-        st.write("✅ Successfully created connection pool")
-    except Exception as e:
-        st.error(f"❌ Failed to create connection pool: {str(e)}")
-        return False
-
-    # Try to get a connection
-    try:
-        conn = get_conn()
-        if not conn:
-            st.error("❌ Could not get connection from pool")
-            return False
-        st.write("✅ Successfully got connection from pool")
-        
-        # Try a simple query
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-            result = cur.fetchone()
-            if result and result[0] == 1:
-                st.success("✅ Successfully executed test query!")
-                return True
-            else:
-                st.error("❌ Test query failed")
-                return False
-    except Exception as e:
-        st.error(f"❌ Connection test failed: {str(e)}")
-        return False
-    finally:
-        if conn:
-            put_conn(conn)
-            
-def test_direct_connection():
-    try:
-        conn = psycopg2.connect(
-            host="db.femttejhwlqnofwnbqtl.supabase.co",
-            database="postgres",
-            user="postgres",
-            password=st.secrets["DB_PASSWORD"],
-            port="5432"
+        db_pool = pool.SimpleConnectionPool(
+            1, 20,
+            dsn=st.secrets["DATABASE_URL"]
         )
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-            result = cur.fetchone()
-        conn.close()
-        st.success("✅ Direct connection successful!")
-        return True
+        return db_pool
     except Exception as e:
-        st.error(f"❌ Direct connection failed: {str(e)}")
-        return False
+        st.error(f"Error creating connection pool: {e}")
+        return None
+
+# Make sure these functions are defined before using them
+def get_conn():
+    try:
+        return st.session_state.db_pool.getconn()
+    except Exception as e:
+        st.error(f"Failed to get database connection: {e}")
+        return None
+
+def put_conn(conn):
+    try:
+        st.session_state.db_pool.putconn(conn)
+    except Exception as e:
+        st.error(f"Failed to return connection to pool: {e}")
 
 # Page config
 st.set_page_config(page_title="AI Powered Julrims Generator - Registera nu för att få ett gratis rim!", page_icon="🎁")
-
-if st.sidebar.button("Test URL Connection"):
-    test_db_connection()
-    
-if st.sidebar.button("Test Direct Connection"):
-    test_direct_connection()
+if 'db_pool' not in st.session_state:
+    st.session_state.db_pool = init_connection_pool()
 
 # Configure API keys from Streamlit secrets
 stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
