@@ -1,199 +1,89 @@
 import streamlit as st
 import stripe
 from openai import OpenAI
-import psycopg2
-from psycopg2 import pool
+import sqlite3
 import hashlib
 from datetime import datetime
 
-
-@st.cache_resource
-def init_connection_pool():
-    try:
-        db_pool = pool.SimpleConnectionPool(
-            1,  # minimum connections
-            20, # maximum connections
-            host="db.femttejhwlqnofwnbqtl.supabase.co",
-            database="postgres",
-            user="postgres",
-            password=st.secrets["DB_PASSWORD"],
-            port="6543"  # Changed from 5432 to 6543
-        )
-        return db_pool
-    except Exception as e:
-        st.error(f"Error creating connection pool: {e}")
-        return None
-
 # Page config
 st.set_page_config(page_title="AI Powered Julrims Generator - Registera nu för att få ett gratis rim!", page_icon="🎁")
-if 'db_pool' not in st.session_state:
-    st.session_state.db_pool = init_connection_pool()
 
 # Configure API keys from Streamlit secrets
 stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# Initialize connection pool
-@st.cache_resource
-def init_connection_pool():
-    return psycopg2.pool.SimpleConnectionPool(
-        1, 20,
-        dsn=st.secrets["DATABASE_URL"]
-    )
-
-# Get database connection from pool
-def get_conn():
-    try:
-        return st.session_state.db_pool.getconn()
-    except Exception as e:
-        st.error(f"Database connection failed: {e}")
-        return None
-
-# Return connection to pool
-def put_conn(conn):
-    try:
-        st.session_state.db_pool.putconn(conn)
-    except Exception as e:
-        st.error(f"Failed to return connection to pool: {e}")
-
 # Database functions
 def init_db():
-    conn = get_conn()
-    if not conn:
-        return
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS users
+                 (email TEXT PRIMARY KEY, 
+                  password TEXT, 
+                  credits INTEGER DEFAULT 1,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
-    try:
-        with conn.cursor() as cur:
-            # Create users table
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    email TEXT PRIMARY KEY,
-                    password TEXT NOT NULL,
-                    credits INTEGER DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Create rhyme history table
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS rhyme_history (
-                    id SERIAL PRIMARY KEY,
-                    email TEXT REFERENCES users(email),
-                    rhyme TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-        conn.commit()
-    except Exception as e:
-        st.error(f"Database initialization failed: {e}")
-    finally:
-        put_conn(conn)
+    c.execute('''CREATE TABLE IF NOT EXISTS rhyme_history
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  email TEXT,
+                  rhyme TEXT,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    conn.commit()
+    conn.close()
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def create_user(email, password):
-    conn = get_conn()
-    if not conn:
-        return
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO users (email, password, credits) 
-                VALUES (%s, %s, 1)
-            """, (email, hash_password(password)))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise e
-    finally:
-        put_conn(conn)
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO users (email, password, credits) 
+        VALUES (?, ?, 1)
+    """, (email, hash_password(password)))
+    conn.commit()
+    conn.close()
 
 def verify_user(email, password):
-    conn = get_conn()
-    if not conn:
-        return False
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT password FROM users WHERE email = %s", (email,))
-            result = cur.fetchone()
-            return result and result[0] == hash_password(password)
-    finally:
-        put_conn(conn)
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("SELECT password FROM users WHERE email = ?", (email,))
+    result = c.fetchone()
+    conn.close()
+    if result and result[0] == hash_password(password):
+        return True
+    return False
 
 def get_credits(email):
-    conn = get_conn()
-    if not conn:
-        return 0
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT credits FROM users WHERE email = %s", (email,))
-            result = cur.fetchone()
-            return result[0] if result else 0
-    finally:
-        put_conn(conn)
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("SELECT credits FROM users WHERE email = ?", (email,))
+    result = c.fetchone()
+    conn.close()
+    return result[0] if result else 0
 
 def update_credits(email, credits):
-    conn = get_conn()
-    if not conn:
-        return
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE users 
-                SET credits = %s 
-                WHERE email = %s
-            """, (credits, email))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        st.error(f"Failed to update credits: {e}")
-    finally:
-        put_conn(conn)
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET credits = ? WHERE email = ?", (credits, email))
+    conn.commit()
+    conn.close()
 
 def save_rhyme(email, rhyme):
-    conn = get_conn()
-    if not conn:
-        return
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO rhyme_history (email, rhyme)
-                VALUES (%s, %s)
-            """, (email, rhyme))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        st.error(f"Failed to save rhyme: {e}")
-    finally:
-        put_conn(conn)
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO rhyme_history (email, rhyme) VALUES (?, ?)", 
+              (email, rhyme))
+    conn.commit()
+    conn.close()
 
 def get_rhyme_history(email):
-    conn = get_conn()
-    if not conn:
-        return []
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT rhyme, created_at 
-                FROM rhyme_history 
-                WHERE email = %s 
-                ORDER BY created_at DESC
-            """, (email,))
-            return cur.fetchall()
-    finally:
-        put_conn(conn)
-
-# Initialize connection pool at startup
-if 'db_pool' not in st.session_state:
-    st.session_state.db_pool = init_connection_pool()
+    conn = sqlite3.connect('rhyme_users.db')
+    c = conn.cursor()
+    c.execute("SELECT rhyme, created_at FROM rhyme_history WHERE email = ? ORDER BY created_at DESC", 
+              (email,))
+    history = c.fetchall()
+    conn.close()
+    return history
 
 # Stripe functions
 def get_streamlit_url():
