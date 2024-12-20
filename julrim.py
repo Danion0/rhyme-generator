@@ -228,7 +228,113 @@ def main():
             credits = get_credits(st.session_state.email)
             st.write(f"Credits remaining: {credits}")
             
-            if credits < 3:
+            # Admin Panel - Add here
+            if st.session_state.email == st.secrets["ADMIN_EMAIL"]:
+                st.sidebar.markdown("---")
+                st.sidebar.markdown("### Admin Panel")
+                
+                if st.sidebar.button("View User Statistics"):
+                    # Get all users
+                    conn = sqlite3.connect('rhyme_users.db')
+                    c = conn.cursor()
+                    
+                    # Get user statistics
+                    c.execute("""
+                        SELECT 
+                            users.email,
+                            users.credits,
+                            users.created_at,
+                            COUNT(DISTINCT rhyme_history.id) as rhyme_count
+                        FROM users
+                        LEFT JOIN rhyme_history ON users.email = rhyme_history.email
+                        GROUP BY users.email
+                        ORDER BY users.created_at DESC
+                    """)
+                    users = c.fetchall()
+                    
+                    # Prepare data for CSV
+                    import pandas as pd
+                    import io
+
+                    # Create user statistics DataFrame
+                    user_data = []
+                    for user in users:
+                        # Get user's rhyme history
+                        c.execute("""
+                            SELECT rhyme, created_at 
+                            FROM rhyme_history 
+                            WHERE email = ?
+                        """, (user[0],))
+                        rhymes = c.fetchall()
+                        
+                        user_data.append({
+                            'Email': user[0],
+                            'Credits': user[1],
+                            'Created At': user[2],
+                            'Total Rhymes': user[3],
+                            'Last Rhyme Date': rhymes[0][1] if rhymes else 'No rhymes'
+                        })
+                    
+                    df = pd.DataFrame(user_data)
+                    
+                    # Create download button for CSV
+                    csv = df.to_csv(index=False)
+                    st.download_button(
+                        label="Download User Data CSV",
+                        data=csv,
+                        file_name="user_statistics.csv",
+                        mime="text/csv"
+                    )
+                    
+                    # Display total statistics
+                    total_users = len(users)
+                    total_rhymes = sum(user[3] for user in users)
+                    total_credits = sum(user[1] for user in users)
+                    
+                    st.markdown("### Overall Statistics")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Users", total_users)
+                    with col2:
+                        st.metric("Total Rhymes", total_rhymes)
+                    with col3:
+                        st.metric("Total Credits", total_credits)
+                    
+                    st.markdown("### User Details")
+                    for user in users:
+                        with st.expander(f"User: {user[0]}"):
+                            st.write(f"Credits: {user[1]}")
+                            st.write(f"Created: {user[2]}")
+                            st.write(f"Total Rhymes Generated: {user[3]}")
+                            
+                            # Credit modification
+                            new_credits = st.number_input(
+                                "Modify Credits", 
+                                min_value=0, 
+                                value=user[1],
+                                key=f"credits_{user[0]}"
+                            )
+                            if st.button("Update Credits", key=f"update_{user[0]}"):
+                                update_credits(user[0], new_credits)
+                                st.success(f"Credits updated for {user[0]}")
+                            
+                            # Show rhyme history
+                            c.execute("""
+                                SELECT rhyme, created_at 
+                                FROM rhyme_history 
+                                WHERE email = ? 
+                                ORDER BY created_at DESC
+                            """, (user[0],))
+                            rhymes = c.fetchall()
+                            
+                            if rhymes:
+                                st.write("#### Rhyme History")
+                                for rhyme in rhymes:
+                                    with st.expander(f"Rhyme from {rhyme[1]}"):
+                                        st.text(rhyme[0])
+                    
+                    conn.close()   
+            if credits < 20:
                 if st.button("Köp 5 Credits (50 SEK)"):
                     checkout_session = create_checkout_session(st.session_state.email)
                     if checkout_session:
