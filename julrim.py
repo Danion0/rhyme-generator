@@ -214,7 +214,7 @@ def main():
     if 'email' not in st.session_state:
         st.session_state.email = None
 
-    st.title("🎁 Julrims Generator")
+    st.title("🎁 Julrims Generator - Registera nu för att få ett gratis rim!")
 
     # Sidebar login/register
     with st.sidebar:
