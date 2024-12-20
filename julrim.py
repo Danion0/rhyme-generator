@@ -6,33 +6,9 @@ from psycopg2 import pool
 import hashlib
 from datetime import datetime
 
-def test_db_connection():
-    conn = get_conn()
-    if not conn:
-        st.error("❌ Could not connect to database")
-        return False
-    
-    try:
-        with conn.cursor() as cur:
-            # Try to execute a simple query
-            cur.execute("SELECT 1")
-            result = cur.fetchone()
-            if result and result[0] == 1:
-                st.success("✅ Database connection successful!")
-                return True
-            else:
-                st.error("❌ Database query failed")
-                return False
-    except Exception as e:
-        st.error(f"❌ Database test failed: {str(e)}")
-        return False
-    finally:
-        put_conn(conn)
 
 # Page config
 st.set_page_config(page_title="AI Powered Julrims Generator - Registera nu för att få ett gratis rim!", page_icon="🎁")
-if st.sidebar.button("Test Database Connection"):
-    test_db_connection()
 
 # Configure API keys from Streamlit secrets
 stripe.api_key = st.secrets["STRIPE_SECRET_KEY"]
