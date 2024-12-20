@@ -4,6 +4,8 @@ from openai import OpenAI
 import sqlite3
 import hashlib
 from datetime import datetime
+import time 
+import pandas as pd
 
 # Page config
 st.set_page_config(page_title="AI Powered Julrims Generator - Registera nu för att få ett gratis rim!", page_icon="🎁")
@@ -252,14 +254,10 @@ def main():
                     """)
                     users = c.fetchall()
                     
-                    # Prepare data for CSV
+                    # CSV Export
                     import pandas as pd
-                    import io
-
-                    # Create user statistics DataFrame
                     user_data = []
                     for user in users:
-                        # Get user's rhyme history
                         c.execute("""
                             SELECT rhyme, created_at 
                             FROM rhyme_history 
@@ -276,8 +274,6 @@ def main():
                         })
                     
                     df = pd.DataFrame(user_data)
-                    
-                    # Create download button for CSV
                     csv = df.to_csv(index=False)
                     st.download_button(
                         label="Download User Data CSV",
@@ -286,7 +282,7 @@ def main():
                         mime="text/csv"
                     )
                     
-                    # Display total statistics
+                    # Display statistics
                     total_users = len(users)
                     total_rhymes = sum(user[3] for user in users)
                     total_credits = sum(user[1] for user in users)
@@ -300,25 +296,30 @@ def main():
                     with col3:
                         st.metric("Total Credits", total_credits)
                     
+                    # User Details
                     st.markdown("### User Details")
                     for user in users:
                         with st.expander(f"User: {user[0]}"):
-                            st.write(f"Credits: {user[1]}")
-                            st.write(f"Created: {user[2]}")
-                            st.write(f"Total Rhymes Generated: {user[3]}")
+                            col1, col2 = st.columns([2,1])
+                            with col1:
+                                st.write(f"Created: {user[2]}")
+                                st.write(f"Total Rhymes Generated: {user[3]}")
                             
-                            # Credit modification
-                            new_credits = st.number_input(
-                                "Modify Credits", 
-                                min_value=0, 
-                                value=user[1],
-                                key=f"credits_{user[0]}"
-                            )
-                            if st.button("Update Credits", key=f"update_{user[0]}"):
-                                update_credits(user[0], new_credits)
-                                st.success(f"Credits updated for {user[0]}")
+                            with col2:
+                                st.write(f"Current Credits: {user[1]}")
+                                new_credits = st.number_input(
+                                    "Set Credits", 
+                                    min_value=0, 
+                                    value=user[1], 
+                                    key=f"input_{user[0]}"
+                                )
+                                if st.button("Save", key=f"save_{user[0]}"):
+                                    update_credits(user[0], new_credits)
+                                    st.success(f"Updated credits for {user[0]}")
+                                    time.sleep(1)  # Give user time to see success message
+                                    st.rerun()
                             
-                            # Show rhyme history
+                            # Rhyme history
                             c.execute("""
                                 SELECT rhyme, created_at 
                                 FROM rhyme_history 
@@ -329,7 +330,6 @@ def main():
                             
                             if rhymes:
                                 st.write("#### Rhyme History")
-                                # Instead of nested expanders, use a table format
                                 for i, rhyme in enumerate(rhymes, 1):
                                     st.write(f"**Rhyme {i} - {rhyme[1]}**")
                                     st.text(rhyme[0])
