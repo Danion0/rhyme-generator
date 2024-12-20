@@ -329,9 +329,11 @@ def main():
                             
                             if rhymes:
                                 st.write("#### Rhyme History")
-                                for rhyme in rhymes:
-                                    with st.expander(f"Rhyme from {rhyme[1]}"):
-                                        st.text(rhyme[0])
+                                # Instead of nested expanders, use a table format
+                                for i, rhyme in enumerate(rhymes, 1):
+                                    st.write(f"**Rhyme {i} - {rhyme[1]}**")
+                                    st.text(rhyme[0])
+                                    st.write("---")
                     
                     conn.close()   
             if credits < 20:
