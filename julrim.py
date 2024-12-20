@@ -10,15 +10,14 @@ from datetime import datetime
 @st.cache_resource
 def init_connection_pool():
     try:
-        # Create connection pool using separate parameters
         db_pool = pool.SimpleConnectionPool(
             1,  # minimum connections
             20, # maximum connections
             host="db.femttejhwlqnofwnbqtl.supabase.co",
             database="postgres",
             user="postgres",
-            password=st.secrets["DB_PASSWORD"],  # Store raw password in secrets
-            port="5432"
+            password=st.secrets["DB_PASSWORD"],
+            port="6543"  # Changed from 5432 to 6543
         )
         return db_pool
     except Exception as e:
