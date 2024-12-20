@@ -69,8 +69,8 @@ def update_credits(email, credits):
     try:
         # First verify current credits
         c.execute("SELECT credits FROM users WHERE email = ?", (email,))
-        old_credits = c.fetchone()[0]
-        st.write(f"Debug - Old credits: {old_credits}")  # Debug log
+        #old_credits = c.fetchone()[0]
+        #st.write(f"Debug - Old credits: {old_credits}")  # Debug log
 
         # Update credits
         c.execute("UPDATE users SET credits = ? WHERE email = ?", (credits, email))
@@ -78,11 +78,11 @@ def update_credits(email, credits):
 
         # Verify the update
         c.execute("SELECT credits FROM users WHERE email = ?", (email,))
-        new_credits = c.fetchone()[0]
-        st.write(f"Debug - New credits: {new_credits}")  # Debug log
+        #new_credits = c.fetchone()[0]
+        #st.write(f"Debug - New credits: {new_credits}")  # Debug log
 
-        if new_credits != credits:
-            st.error("Credit update failed to save correctly")
+        #if new_credits != credits:
+        #    st.error("Credit update failed to save correctly")
     except Exception as e:
         st.error(f"Error updating credits: {e}")
     finally:
@@ -244,9 +244,9 @@ def main():
                         st.error("Registreringen misslyckades. Emailen finns säkert redan.")
         
         else:
-            st.write(f"Logged in as: {st.session_state.email}")
+            st.write(f"Inloggad som: {st.session_state.email}")
             credits = get_credits(st.session_state.email)
-            st.write(f"Credits remaining: {credits}")
+            st.write(f"Credits kvar: {credits}")
             
             # Admin Panel - Add here
             if st.session_state.email == st.secrets["ADMIN_EMAIL"]:
