@@ -196,7 +196,7 @@ def main():
                 # Fallback credit update if webhook failed
                 update_credits(email, 5)
                 st.write("Dina credits har uppdaterats. Vänligen logga in igen.")
-        st.success("Betalningen gick bra. Ditt account har uppdaterats med 5 credits.")
+        st.success("Betalningen gick bra. Ditt account har uppdaterats med 5 credits. Vänligen logga in igen.")
         st.query_params.clear()
     elif 'canceled' in st.query_params:
         st.warning("Payment canceled.")
