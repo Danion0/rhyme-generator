@@ -252,11 +252,11 @@ def main():
             st.write(f"Logged in as: {st.session_state.email}")
             credits = get_credits(st.session_state.email)
             st.write(f"Credits remaining: {credits}")
-        
-        else:
-            st.write(f"Inloggad som: {st.session_state.email}")
-            credits = get_credits(st.session_state.email)
-            st.write(f"Credits kvar: {credits}")
+            
+            if st.button("Logout"):
+                st.session_state.logged_in = False
+                st.session_state.email = None
+                st.rerun()
             
             # Admin Panel - Add here
             if st.session_state.email == st.secrets["ADMIN_EMAIL"]:
@@ -365,18 +365,21 @@ def main():
                     
                     conn.close()   
             if credits < 20:
-                if st.button("Köp 5 Credits (50 SEK)"):
-                    checkout_session = create_checkout_session(st.session_state.email)
-                    if checkout_session:
-                        st.markdown(f"""
-                            <a href="{checkout_session.url}" target="_blank">
-                                <button style="background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer;">
-                                    Forsätt till betalning
-                                </button>
-                            </a>
-                            """,
-                            unsafe_allow_html=True
-                        )
+                st.markdown("### Köp Credits")
+                col1, col2 = st.columns([2,1])
+                with col1:
+                    if st.button("Köp 5 Credits (50 SEK)", type="primary"):
+                        checkout_session = create_checkout_session(st.session_state.email)
+                        if checkout_session:
+                            st.markdown(f"""
+                                <a href="{checkout_session.url}" target="_blank">
+                                    <button style="background-color: #4CAF50; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer;">
+                                        Forsätt till betalning
+                                    </button>
+                                </a>
+                                """,
+                                unsafe_allow_html=True
+                            )
             
             if st.button("Logout"):
                 st.session_state.logged_in = False
