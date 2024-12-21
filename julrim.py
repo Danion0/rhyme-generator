@@ -217,31 +217,41 @@ def main():
     st.title("🎁 Julrims Generator - Registera nu för att få ett gratis rim!")
 
     # Sidebar login/register
-    with st.sidebar:
-        if not st.session_state.logged_in:
-            st.subheader("Login")
-            login_tab, register_tab = st.tabs(["Login", "Register"])
-            
-            with login_tab:
+    if not st.session_state.logged_in:
+        st.markdown("### Logga in eller Registrera")
+        login_tab, register_tab = st.tabs(["Login", "Register"])
+        
+        with login_tab:
+            col1, col2 = st.columns([2,1])
+            with col1:
                 login_email = st.text_input("Email", key="login_email")
                 login_password = st.text_input("Password", type="password", key="login_password")
-                if st.button("Login"):
+                if st.button("Login", type="primary"):  # Make button more prominent
                     if verify_user(login_email, login_password):
                         st.session_state.logged_in = True
                         st.session_state.email = login_email
                         st.rerun()
                     else:
                         st.error("Invalid credentials")
-            
-            with register_tab:
+        
+        with register_tab:
+            col1, col2 = st.columns([2,1])
+            with col1:
                 reg_email = st.text_input("Email", key="reg_email")
                 reg_password = st.text_input("Password", type="password", key="reg_password")
-                if st.button("Register"):
+                if st.button("Register", type="primary"):
                     try:
                         create_user(reg_email, reg_password)
-                        st.success("Registreringen gick bra! Vänligen logga in.")
+                        st.success("Registreringen gick bra! Du får en gratis credit. Vänligen logga in.")
                     except Exception as e:
                         st.error("Registreringen misslyckades. Emailen finns säkert redan.")
+    
+    # Keep the rest of your sidebar content for logged-in users
+    with st.sidebar:
+        if st.session_state.logged_in:
+            st.write(f"Logged in as: {st.session_state.email}")
+            credits = get_credits(st.session_state.email)
+            st.write(f"Credits remaining: {credits}")
         
         else:
             st.write(f"Inloggad som: {st.session_state.email}")
