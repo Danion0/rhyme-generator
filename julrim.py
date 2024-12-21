@@ -381,10 +381,6 @@ def main():
                                 unsafe_allow_html=True
                             )
             
-            if st.button("Logout"):
-                st.session_state.logged_in = False
-                st.session_state.email = None
-                st.rerun()
 
     # Main content
     if st.session_state.logged_in:
