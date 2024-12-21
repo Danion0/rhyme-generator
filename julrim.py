@@ -216,7 +216,7 @@ def main():
 
     st.title("🎁 Julrims Generator - Registera nu för att få ett gratis rim!")
 
-    # Sidebar login/register
+    # Move login/register to main content for better mobile visibility
     if not st.session_state.logged_in:
         st.markdown("### Logga in eller Registrera")
         login_tab, register_tab = st.tabs(["Login", "Register"])
